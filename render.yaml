@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: airline-backend
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: "cd backend && npm install"
+    startCommand: "cd backend && npm start"
+    envVars:
+      - key: AVIATIONSTACK_KEY
+        sync: false
+      - key: IATACODES_KEY
+        sync: false
+
+staticSites:
+  - name: airline-frontend
+    buildCommand: "echo 'no build needed!'"
+    publishPath: "frontend"
+    routes:
+      - type: rewrite
+        source: "/*"
+        destination: "/index.html"
