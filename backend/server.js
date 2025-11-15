@@ -1,68 +1,63 @@
 import express from "express";
 import fetch from "node-fetch";
-import { load } from "cheerio";
 import dotenv from "dotenv";
+import cors from "cors";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 const PORT = process.env.PORT || 3000;
+const API_KEY = tea70fdbdb86c100d9c929a453923d93a9;
 
+// Health check
 app.get("/", (req, res) => {
-  res.send("Airline Backend API is running ✔");
+  res.send("Airline API is running ✔");
 });
 
+// Unified endpoint
 app.get("/airline", async (req, res) => {
   try {
     const { name, iata, icao } = req.query;
 
     if (!name && !iata && !icao) {
-      return res.status(400).json({ error: "Provide name, iata, or icao" });
+      return res
+        .status(400)
+        .json({ error: "Provide at least one: ?name= OR ?iata= OR ?icao=" });
     }
 
-    const searchTerm = iata || icao || name;
-    const url = `https://www.airlineupdate.com/content_public/airlines/${searchTerm}.htm`;
+    const queryValue = iata || icao || name;
+
+    const url = `http://api.aviationstack.com/v1/airlines?access_key=${API_KEY}&search=${queryValue}`;
 
     const response = await fetch(url);
-    const html = await response.text();
-    const $ = load(html);
+    const data = await response.json();
 
-    const data = {
-      name: $("h1").text().trim() || "",
-      shortName: $("td:contains('Short Name')").next().text().trim() || "",
-      iata: $("td:contains('IATA')").next().text().trim() || "",
-      icao: $("td:contains('ICAO')").next().text().trim() || "",
-      country: $("td:contains('Country')").next().text().trim() || "",
-      region: $("td:contains('Region')").next().text().trim() || "",
-      fleet_size: $("td:contains('Fleet Size')").next().text().trim() || "",
-      aircraft_types: $("td:contains('Aircraft Types')").next().text().trim() || "",
-      headquarters: $("td:contains('Headquarters')").next().text().trim() || "",
-      founded: $("td:contains('Founded')").next().text().trim() || "",
-      website: $("td:contains('Website')").next().text().trim() || "",
-      email: $("td:contains('Email')").next().text().trim() || "",
-      phone: $("td:contains('Phone')").next().text().trim() || "",
-      callsign: $("td:contains('Callsign')").next().text().trim() || "",
-      type: $("td:contains('Type')").next().text().trim() || "",
-      status: $("td:contains('Status')").next().text().trim() || "",
-      category: $("td:contains('Category')").next().text().trim() || "",
-      email_sales: $("td:contains('Sales Email')").next().text().trim() || "",
-      email_ops: $("td:contains('Ops Email')").next().text().trim() || "",
-      logo_url: $("img.logo").attr("src") || "",
-      phone_sales: $("td:contains('Sales Phone')").next().text().trim() || "",
-      phone_ops: $("td:contains('Ops Phone')").next().text().trim() || "",
-      observations: $("td:contains('Observations')").next().text().trim() || ""
-    };
+    if (!data.data || data.data.length === 0) {
+      return res.json({ error: "No airline found" });
+    }
 
-    res.json(data);
+    const airline = data.data[0];
 
-  } catch (error) {
-    console.error(error);
+    res.json({
+      name: airline.airline_name || "",
+      iata: airline.iata_code || "",
+      icao: airline.icao_code || "",
+      callsign: airline.callsign || "",
+      country: airline.country_name || "",
+      type: airline.type || "",
+      status: airline.status || "",
+      hub_code: airline.hub_code || "",
+    });
+
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Server Error" });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Airline API running on port ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`Airline API running on port ${PORT}`)
+);
