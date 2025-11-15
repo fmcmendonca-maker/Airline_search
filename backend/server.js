@@ -1,6 +1,6 @@
 import express from "express";
 import fetch from "node-fetch";
-import * as cheerio from "cheerio";
+import { load } from "cheerio";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -10,12 +10,10 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// 🟦 Root route to verify backend is running
 app.get("/", (req, res) => {
   res.send("Airline Backend API is running ✔");
 });
 
-// 🟦 Main airline lookup route
 app.get("/airline", async (req, res) => {
   try {
     const { name, iata, icao } = req.query;
@@ -24,15 +22,13 @@ app.get("/airline", async (req, res) => {
       return res.status(400).json({ error: "Provide name, iata, or icao" });
     }
 
-    // Build URL for scraping
     const searchTerm = iata || icao || name;
     const url = `https://www.airlineupdate.com/content_public/airlines/${searchTerm}.htm`;
 
     const response = await fetch(url);
     const html = await response.text();
-    const $ = cheerio.load(html);
+    const $ = load(html);
 
-    // Extract fields
     const data = {
       name: $("h1").text().trim() || "",
       shortName: $("td:contains('Short Name')").next().text().trim() || "",
@@ -67,7 +63,6 @@ app.get("/airline", async (req, res) => {
   }
 });
 
-// 🟦 Start server
 app.listen(PORT, () => {
   console.log(`Airline API running on port ${PORT}`);
 });
