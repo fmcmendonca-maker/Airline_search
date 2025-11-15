@@ -1,132 +1,45 @@
-<<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Airline Search</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: auto;
-            background: white;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-
-        h2 {
-            margin-top: 0;
-            text-align: center;
-        }
-
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0 16px 0;
-            border: 1px solid #aaa;
-            border-radius: 6px;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #0077ff;
-            color: white;
-            border: none;
-            font-size: 16px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #005ce6;
-        }
-
-        .results {
-            margin-top: 20px;
-            padding: 15px;
-            background: #eef4ff;
-            border-radius: 6px;
-        }
-
-        .error {
-            background: #ffe5e5;
-            padding: 10px;
-            border-radius: 6px;
-            color: #b30000;
-        }
-    </style>
-</head>
-
-<body>
-
-<div class="container">
-    <h2>Search for an Airline</h2>
-
-    <p>You can search by Airline Name, IATA, or ICAO.</p>
-
-    <input type="text" id="searchInput" placeholder="Example: Lufthansa, LH, DLH">
-    <button onclick="searchAirline()">Search</button>
-
-    <div id="result"></div>
-</div>
-
-
 <script>
 async function searchAirline() {
-    const search = document.getElementById("searchInput").value.trim();
-    const resultBox = document.getElementById("result");
+  const query = document.getElementById("airlineInput").value.trim();
+  const output = document.getElementById("output");
+  output.innerHTML = "Searching...";
 
-    if (!search) {
-        resultBox.innerHTML = `<div class='error'>Please enter an airline name, IATA, or ICAO code.</div>`;
-        return;
+  if (!query) {
+    output.innerHTML = "Please enter airline name, IATA, or ICAO.";
+    return;
+  }
+
+  // Decide what type of query
+  let param = "";
+  if (query.length === 2) param = "iata";   // Example: LH
+  else if (query.length === 3) param = "icao"; // Example: DLH
+  else param = "name"; // Example: Lufthansa
+
+  const url = `https://airline-search-h4y0.onrender.com/airline?${param}=${encodeURIComponent(query)}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.error || !data.name) {
+      output.innerHTML = "No airline found.";
+      return;
     }
 
-    resultBox.innerHTML = "Searching...";
-
-    try {
-        // TODO -> replace with your actual backend URL
-        const backendURL = "https://airline-search-h4y0.onrender.com/" + encodeURIComponent(search);
-
-        const response = await fetch(backendURL);
-        const data = await response.json();
-
-        if (!response.ok) {
-            resultBox.innerHTML = `<div class='error'>${data.error || "Airline not found."}</div>`;
-            return;
-        }
-
-        // Build result HTML
-        let html = `
-            <div class="results">
-                <h3>${data.name || "Unknown Airline"}</h3>
-                <p><strong>Country:</strong> ${data.country || "N/A"}</p>
-                <p><strong>IATA:</strong> ${data.iata || "N/A"}</p>
-                <p><strong>ICAO:</strong> ${data.icao || "N/A"}</p>
-                <p><strong>Callsign:</strong> ${data.callsign || "N/A"}</p>
-                <p><strong>Status:</strong> ${data.active ? "Active" : "Inactive"}</p>
-        `;
-
-        if (data.fleetSize) {
-            html += `<p><strong>Fleet Size:</strong> ${data.fleetSize}</p>`;
-        }
-
-        html += `</div>`;
-        resultBox.innerHTML = html;
-
-    } catch (error) {
-        resultBox.innerHTML = `<div class='error'>Server error. Please try again later.</div>`;
-    }
+    // Build output
+    output.innerHTML = `
+      <h2>${data.name}</h2>
+      <p><strong>IATA:</strong> ${data.iata || "-"}</p>
+      <p><strong>ICAO:</strong> ${data.icao || "-"}</p>
+      <p><strong>Callsign:</strong> ${data.callsign || "-"}</p>
+      <p><strong>Country:</strong> ${data.country || "-"}</p>
+      <p><strong>Type:</strong> ${data.type || "-"}</p>
+      <p><strong>Status:</strong> ${data.status || "-"}</p>
+      <p><strong>Hub:</strong> ${data.hub_code || "-"}</p>
+    `;
+  } catch (err) {
+    console.error(err);
+    output.innerHTML = "Server error. Please try again.";
+  }
 }
 </script>
-
-</body>
-</html>
-html><body>Frontend</body></html>
