@@ -1,44 +1,21 @@
-<script>
-async function searchAirline() {
-  const query = document.getElementById("airlineInput").value.trim();
-  const output = document.getElementById("output");
-  output.innerHTML = "Searching...";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Airline Search</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-  if (!query) {
-    output.innerHTML = "Please enter airline name, IATA, or ICAO.";
-    return;
-  }
+<div class="container">
+    <h1>Airline Search Tool</h1>
 
-  // Decide what the query is
-  let param = "";
-  if (query.length === 2) param = "iata";     // LH
-  else if (query.length === 3) param = "icao"; // DLH
-  else param = "name";                         // Lufthansa
+    <input type="text" id="searchInput" placeholder="Enter Airline Name, IATA, or ICAO">
+    <button onclick="searchAirline()">Search</button>
 
-  // ✅ CORRECT URL FORMAT
-  const url = `https://airline-search-h4y0.onrender.com/airline?${param}=${encodeURIComponent(query)}`;
+    <pre id="result"></pre>
+</div>
 
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (data.error || !data.name) {
-      output.innerHTML = "No airline found.";
-      return;
-    }
-
-    output.innerHTML = `
-      <h2>${data.name}</h2>
-      <p><strong>IATA:</strong> ${data.iata || "-"}</p>
-      <p><strong>ICAO:</strong> ${data.icao || "-"}</p>
-      <p><strong>Callsign:</strong> ${data.callsign || "-"}</p>
-      <p><strong>Country:</strong> ${data.country || "-"}</p>
-      <p><strong>Type:</strong> ${data.type || "-"}</p>
-      <p><strong>Status:</strong> ${data.status || "-"}</p>
-    `;
-  } catch (err) {
-    console.error(err);
-    output.innerHTML = "Server error. Please try again.";
-  }
-}
-</script>
+<script src="script.js"></script>
+</body>
+</html>
