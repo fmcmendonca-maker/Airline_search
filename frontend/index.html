@@ -93,7 +93,7 @@ async function searchAirline() {
 
     try {
         // TODO -> replace with your actual backend URL
-        const backendURL = "https://YOUR-BACKEND-URL.onrender.com/airline?search=" + encodeURIComponent(search);
+        const backendURL = "https://airline-search-h4y0.onrender.com/" + encodeURIComponent(search);
 
         const response = await fetch(backendURL);
         const data = await response.json();
