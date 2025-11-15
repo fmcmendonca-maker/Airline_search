@@ -10,7 +10,7 @@ app.use(express.json());
 app.use(cors());
 
 const PORT = process.env.PORT || 3000;
-const API_KEY = '7a70fdbdb86c100d9c929a453923d93a9';
+const API_KEY =7a70fdbdb86c100d9c929a453923d93a9;
 
 app.get("/", (req, res) => {
   res.send("Aviation API is running ✔");
