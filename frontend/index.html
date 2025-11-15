@@ -9,12 +9,13 @@ async function searchAirline() {
     return;
   }
 
-  // Decide what type of query
+  // Decide what the query is
   let param = "";
-  if (query.length === 2) param = "iata";   // Example: LH
-  else if (query.length === 3) param = "icao"; // Example: DLH
-  else param = "name"; // Example: Lufthansa
+  if (query.length === 2) param = "iata";     // LH
+  else if (query.length === 3) param = "icao"; // DLH
+  else param = "name";                         // Lufthansa
 
+  // ✅ CORRECT URL FORMAT
   const url = `https://airline-search-h4y0.onrender.com/airline?${param}=${encodeURIComponent(query)}`;
 
   try {
@@ -26,7 +27,6 @@ async function searchAirline() {
       return;
     }
 
-    // Build output
     output.innerHTML = `
       <h2>${data.name}</h2>
       <p><strong>IATA:</strong> ${data.iata || "-"}</p>
@@ -35,7 +35,6 @@ async function searchAirline() {
       <p><strong>Country:</strong> ${data.country || "-"}</p>
       <p><strong>Type:</strong> ${data.type || "-"}</p>
       <p><strong>Status:</strong> ${data.status || "-"}</p>
-      <p><strong>Hub:</strong> ${data.hub_code || "-"}</p>
     `;
   } catch (err) {
     console.error(err);
