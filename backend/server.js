@@ -45,7 +45,14 @@ app.get("/airline", async (req, res) => {
     return res.status(500).json({ error: "Server Error" });
   }
 });
-
+app.get("/check", (req, res) => {
+  res.json({
+    keyLoaded: process.env.AVIATIONSTACK_KEY ? true : false,
+    keyPrefix: process.env.AVIATIONSTACK_KEY
+      ? process.env.AVIATIONSTACK_KEY.substring(0, 4)
+      : null
+  });
+});
 app.listen(PORT, () => {
   console.log(`API running on port ${PORT}`);
 });
