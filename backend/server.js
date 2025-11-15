@@ -1,65 +1,51 @@
 import express from "express";
 import fetch from "node-fetch";
-import { load } from "cheerio";
-import dotenv from "dotenv";
 import cors from "cors";
+import dotenv from "dotenv";
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
 app.use(express.json());
+app.use(cors());
 
 const PORT = process.env.PORT || 3000;
-const API_KEY = process.env.AVIATIONSTACK_KEY;
+const API_KEY = "tea70fdbdb86c100d9c929a453923d93a9";
 
-
-// Health check
 app.get("/", (req, res) => {
-  res.send("Airline API is running ✔");
+  res.send("Aviation API is running ✔");
 });
 
-// Unified endpoint
 app.get("/airline", async (req, res) => {
   try {
     const { name, iata, icao } = req.query;
 
     if (!name && !iata && !icao) {
-      return res
-        .status(400)
-        .json({ error: "Provide at least one: ?name= OR ?iata= OR ?icao=" });
+      return res.status(400).json({ error: "Provide name, iata, or icao" });
     }
 
-    const queryValue = iata || icao || name;
+    const query = iata ? `&iata_code=${iata}`
+                : icao ? `&icao_code=${icao}`
+                : name ? `&airline_name=${name}`
+                : "";
 
-    const url = `http://api.aviationstack.com/v1/airlines?access_key=${API_KEY}&search=${queryValue}`;
+    const url = `http://api.aviationstack.com/v1/airlines?access_key=${API_KEY}${query}`;
 
     const response = await fetch(url);
-    const data = await response.json();
+    const json = await response.json();
 
-    if (!data.data || data.data.length === 0) {
-      return res.json({ error: "No airline found" });
+    if (!json.data || json.data.length === 0) {
+      return res.status(404).json({ error: "No airline found" });
     }
 
-    const airline = data.data[0];
-
-    res.json({
-      name: airline.airline_name || "",
-      iata: airline.iata_code || "",
-      icao: airline.icao_code || "",
-      callsign: airline.callsign || "",
-      country: airline.country_name || "",
-      type: airline.type || "",
-      status: airline.status || "",
-      hub_code: airline.hub_code || "",
-    });
+    return res.json(json.data[0]);
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server Error" });
+    return res.status(500).json({ error: "Server Error" });
   }
 });
 
-app.listen(PORT, () =>
-  console.log(`Airline API running on port ${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`API running on port ${PORT}`);
+});
