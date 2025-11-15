@@ -1,16 +1,18 @@
 import express from "express";
 import fetch from "node-fetch";
+import { load } from "cheerio";
 import dotenv from "dotenv";
 import cors from "cors";
 
 dotenv.config();
 
 const app = express();
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-const API_KEY = tea70fdbdb86c100d9c929a453923d93a9;
+const API_KEY = process.env.AVIATIONSTACK_KEY;
+
 
 // Health check
 app.get("/", (req, res) => {
