@@ -9,8 +9,8 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.AVIATIONSTACK_KEY;
+const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => {
   res.send("Aviation API is running ✔");
@@ -24,7 +24,14 @@ app.get("/airline", async (req, res) => {
       return res.status(400).json({ error: "Provide name, iata, or icao" });
     }
 
-    const url = `http://api.aviationstack.com/v1/airlines?access_key=${API_KEY}${query}`;
+    // Build API query
+    let query = "";
+    if (iata) query = `&iata_code=${iata.toUpperCase()}`;
+    if (icao) query = `&icao_code=${icao.toUpperCase()}`;
+    if (name) query = `&airline_name=${encodeURIComponent(name)}`;
+
+    const url = `https://api.aviationstack.com/v1/airlines?access_key=${API_KEY}${query}`;
+    console.log("Calling:", url);
 
     const response = await fetch(url);
     const json = await response.json();
@@ -35,19 +42,22 @@ app.get("/airline", async (req, res) => {
 
     return res.json(json.data[0]);
 
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server Error" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server Error" });
   }
 });
+
+// Debug endpoint
 app.get("/check", (req, res) => {
   res.json({
-    keyLoaded: process.env.AVIATIONSTACK_KEY ? true : false,
+    keyLoaded: !!process.env.AVIATIONSTACK_KEY,
     keyPrefix: process.env.AVIATIONSTACK_KEY
       ? process.env.AVIATIONSTACK_KEY.substring(0, 4)
       : null
   });
 });
+
 app.listen(PORT, () => {
   console.log(`API running on port ${PORT}`);
 });
