@@ -24,11 +24,6 @@ app.get("/airline", async (req, res) => {
       return res.status(400).json({ error: "Provide name, iata, or icao" });
     }
 
-    const query = iata ? `&iata_code=${iata}`
-                : icao ? `&icao_code=${icao}`
-                : name ? `&airline_name=${name}`
-                : "";
-
     const url = `http://api.aviationstack.com/v1/airlines?access_key=${API_KEY}${query}`;
 
     const response = await fetch(url);
