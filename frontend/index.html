@@ -1,64 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Airline Finder</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="app">
 
-<div class="container">
-
-  <header>
-    <h1>✈️ Airline Search</h1>
-    <p>Search by Airline Name, IATA or ICAO</p>
-  </header>
-
-  <div class="search-box">
-      <input type="text" id="searchInput" placeholder="Enter Lufthansa, LH, or DLH">
-      <button id="searchBtn">Search</button>
-  </div>
-
-  <div id="loading" class="loading hidden">Searching...</div>
-
-  <div id="errorBox" class="error hidden"></div>
-
-  <div id="result" class="card hidden">
-      <h2 id="airlineName"></h2>
-      <img id="airlineLogo" class="logo hidden" />
-
-      <div class="grid">
-        <div><strong>Short Name:</strong> <span id="shortName"></span></div>
-        <div><strong>IATA:</strong> <span id="iata"></span></div>
-        <div><strong>ICAO:</strong> <span id="icao"></span></div>
-        <div><strong>Country:</strong> <span id="country"></span></div>
-        <div><strong>Region:</strong> <span id="region"></span></div>
-        <div><strong>Fleet Size:</strong> <span id="fleet_size"></span></div>
-        <div><strong>Aircraft Types:</strong> <span id="aircraft_types"></span></div>
-        <div><strong>Headquarters:</strong> <span id="headquarters"></span></div>
-        <div><strong>Founded:</strong> <span id="founded"></span></div>
-        <div><strong>Status:</strong> <span id="status"></span></div>
-        <div><strong>Type:</strong> <span id="type"></span></div>
-        <div><strong>Category:</strong> <span id="category"></span></div>
-        <div><strong>Callsign:</strong> <span id="callsign"></span></div>
-        <div><strong>Email:</strong> <span id="email"></span></div>
-        <div><strong>Phone:</strong> <span id="phone"></span></div>
-        <div><strong>Sales Email:</strong> <span id="email_sales"></span></div>
-        <div><strong>Ops Email:</strong> <span id="email_ops"></span></div>
-        <div><strong>Sales Phone:</strong> <span id="phone_sales"></span></div>
-        <div><strong>Ops Phone:</strong> <span id="phone_ops"></span></div>
-        <div><strong>Observations:</strong> <span id="observations"></span></div>
-        <div><strong>Website:</strong> <span id="website"></span></div>
+    <header class="header">
+      <div>
+        <h1>✈️ Airline Finder</h1>
+        <p>Search any airline by <strong>Name</strong>, <strong>IATA</strong> or <strong>ICAO</strong></p>
       </div>
+      <button id="themeToggle" class="theme-toggle" title="Toggle dark mode">
+        🌙
+      </button>
+    </header>
+
+    <main>
+      <section class="search-section">
+        <form id="searchForm" class="search-box">
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Try: Lufthansa, LH or DLH"
+            autocomplete="off"
+          />
+          <button type="submit">Search</button>
+        </form>
+
+        <p class="hint">
+          • 2 letters → treated as IATA &nbsp; • 3 letters → ICAO &nbsp; • anything else → Name
+        </p>
+
+        <div id="loading" class="loading hidden">
+          <div class="spinner"></div>
+          <span>Searching airline data…</span>
+        </div>
+
+        <div id="errorBox" class="error hidden"></div>
+      </section>
+
+      <section id="resultCard" class="card hidden">
+        <div class="card-header">
+          <div>
+            <h2 id="airlineName">Airline Name</h2>
+            <p class="subtitle" id="airlineSubtitle"></p>
+          </div>
+          <img id="airlineLogo" class="logo hidden" alt="Airline logo" />
+        </div>
+
+        <div class="grid">
+          <div><span class="label">Short Name</span><span id="shortName" class="value"></span></div>
+          <div><span class="label">IATA</span><span id="iata" class="value"></span></div>
+          <div><span class="label">ICAO</span><span id="icao" class="value"></span></div>
+          <div><span class="label">Country</span><span id="country" class="value"></span></div>
+          <div><span class="label">Region</span><span id="region" class="value"></span></div>
+          <div><span class="label">Fleet Size</span><span id="fleet_size" class="value"></span></div>
+          <div><span class="label">Aircraft Types</span><span id="aircraft_types" class="value"></span></div>
+          <div><span class="label">Headquarters</span><span id="headquarters" class="value"></span></div>
+          <div><span class="label">Founded</span><span id="founded" class="value"></span></div>
+          <div><span class="label">Status</span><span id="status" class="value"></span></div>
+          <div><span class="label">Type</span><span id="type" class="value"></span></div>
+          <div><span class="label">Category</span><span id="category" class="value"></span></div>
+          <div><span class="label">Callsign</span><span id="callsign" class="value"></span></div>
+          <div><span class="label">Email</span><span id="email" class="value"></span></div>
+          <div><span class="label">Phone</span><span id="phone" class="value"></span></div>
+          <div><span class="label">Sales Email</span><span id="email_sales" class="value"></span></div>
+          <div><span class="label">Ops Email</span><span id="email_ops" class="value"></span></div>
+          <div><span class="label">Sales Phone</span><span id="phone_sales" class="value"></span></div>
+          <div><span class="label">Ops Phone</span><span id="phone_ops" class="value"></span></div>
+        </div>
+
+        <div class="block">
+          <span class="label">Website</span>
+          <span id="website" class="value"></span>
+        </div>
+
+        <div class="block">
+          <span class="label">Observations</span>
+          <span id="observations" class="value"></span>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Powered by free data sources (Wikipedia + Planespotters). No API key required.</p>
+    </footer>
   </div>
 
-  <footer>
-      <p>Powered by Free Data Sources (Wikipedia + Planespotters)</p>
-  </footer>
-
-</div>
-
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
