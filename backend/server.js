@@ -1,10 +1,7 @@
 import express from "express";
 import fetch from "node-fetch";
 import { load } from "cheerio";
-import dotenv from "dotenv";
 import cors from "cors";
-
-dotenv.config();
 
 const app = express();
 app.use(express.json());
@@ -12,99 +9,76 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
-/* ----------------------------- WIKIPEDIA SCRAPER ---------------------------- */
-
-async function fetchWikipediaData(query) {
-  try {
-    const searchUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(query)}`;
-    const html = await (await fetch(searchUrl, {
-      headers: { "User-Agent": "Mozilla/5.0" }
-    })).text();
-
-    const $ = load(html);
-
-    const infobox = $(".infobox");
-
-    if (!infobox || infobox.length === 0) {
-      return null;
-    }
-
-    const getRow = (label) =>
-      infobox.find(`th:contains(${label})`).next("td").text().trim() || "";
-
-    return {
-      name: $("h1").text().trim(),
-      shortName: "",
-      iata: getRow("IATA"),
-      icao: getRow("ICAO"),
-      callsign: getRow("Callsign"),
-      founded: getRow("Founded"),
-      headquarters: getRow("Headquarters"),
-      website: getRow("Website"),
-      country: "",
-      region: "",
-      fleet_size: "",
-      aircraft_types: "",
-      email: "",
-      phone: "",
-      type: "",
-      status: "",
-      category: "",
-      email_sales: "",
-      email_ops: "",
-      logo_url: infobox.find("img").attr("src")
-        ? "https:" + infobox.find("img").attr("src")
-        : "",
-      phone_sales: "",
-      phone_ops: "",
-      observations: ""
-    };
-
-  } catch (err) {
-    console.error("Wikipedia error:", err);
-    return null;
-  }
+// Small helper to clean text
+function clean(str = "") {
+  return str.replace(/\[.*?\]/g, "").trim();
 }
 
-/* ----------------------------- AIRFLEETS SCRAPER ---------------------------- */
-
-async function fetchAirfleetsData(icao) {
+// -------- Airfleets scraper (optional) --------
+async function fetchAirfleetsData(name, icao) {
   try {
-    if (!icao) return { fleet_size: "", aircraft_types: "" };
+    // We try with the airline name first, fallback to ICAO if needed
+    const key = name || icao;
+    if (!key) return { fleet_size: "", aircraft_types: "" };
 
-    const url = `https://www.airfleets.net/flottecie/${icao}.htm`;
+    const url = `https://www.airfleets.net/flottecie/${encodeURIComponent(
+      key
+    )}.htm`;
 
-    const html = await (await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0" }
-    })).text();
+    const resp = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; AirlineScraper/1.0)"
+      }
+    });
 
+    if (!resp.ok) {
+      return { fleet_size: "", aircraft_types: "" };
+    }
+
+    const html = await resp.text();
     const $ = load(html);
 
-    // Fleet size
-    let fleet_size = $("td:contains('Total')").next().text().trim();
+    let fleet_size = "";
+    const typesSet = new Set();
 
-    // Aircraft types list
-    let aircraft_types = [];
-    $("table.tablo > tbody > tr td:nth-child(1)").each((i, el) => {
-      let type = $(el).text().trim();
-      if (type && type.length < 60) {
-        aircraft_types.push(type);
+    // Heuristic: look for a "Total" cell and take the next td as the fleet size
+    $("td").each((_, el) => {
+      const txt = $(el).text().trim();
+      if (/^Total\b/i.test(txt)) {
+        const val = $(el).next("td").text().trim();
+        if (val) {
+          fleet_size = val;
+        }
+      }
+    });
+
+    // Heuristic: first column of fleet table rows is the aircraft type
+    $("table tr").each((_, row) => {
+      const cols = $(row).find("td");
+      if (cols.length >= 2) {
+        const type = $(cols[0]).text().trim();
+        if (
+          type &&
+          !/^Total\b/i.test(type) &&
+          type.length < 60 &&
+          !/\d/.test(type) // avoid numeric junk rows
+        ) {
+          typesSet.add(type);
+        }
       }
     });
 
     return {
       fleet_size: fleet_size || "",
-      aircraft_types: aircraft_types.join(", ")
+      aircraft_types: Array.from(typesSet).join(", ")
     };
-
   } catch (err) {
     console.error("Airfleets error:", err);
     return { fleet_size: "", aircraft_types: "" };
   }
 }
 
-/* ----------------------------- MAIN ENDPOINT ---------------------------- */
-
+// -------- Wikipedia scraper (current working logic) --------
 app.get("/", (req, res) => {
   res.send("Airline API (Wikipedia + Airfleets) is running ✔");
 });
@@ -114,29 +88,100 @@ app.get("/airline", async (req, res) => {
     const { name, iata, icao } = req.query;
 
     if (!name && !iata && !icao) {
-      return res.status(400).json({ error: "Provide ?name= or ?iata= or ?icao=" });
+      return res
+        .status(400)
+        .json({ error: "Provide ?name= OR ?iata= OR ?icao=" });
     }
 
-    const searchKey = name || iata || icao;
+    const term = name || iata || icao;
+    const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(term)}`;
 
-    // 1️⃣ Get Wikipedia Data
-    let wiki = await fetchWikipediaData(searchKey);
-    if (!wiki) {
-      return res.status(404).json({ error: "No airline found on Wikipedia" });
+    const resp = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; AirlineScraper/1.0)" }
+    });
+
+    if (!resp.ok) {
+      return res.status(404).json({ error: "No airline found" });
     }
 
-    // 2️⃣ Determine ICAO (needed for Airfleets)
-    const icaoCode = icao || wiki.icao;
+    const html = await resp.text();
+    const $ = load(html);
 
-    // 3️⃣ Get Airfleets Data (fleet size + aircraft types)
-    const airfleets = await fetchAirfleetsData(icaoCode);
+    let data = {
+      name: "",
+      shortName: "",
+      iata: "",
+      icao: "",
+      country: "",
+      region: "",
+      fleet_size: "",
+      aircraft_types: "",
+      headquarters: "",
+      founded: "",
+      website: "",
+      email: "",
+      phone: "",
+      callsign: "",
+      type: "",
+      status: "",
+      category: "",
+      email_sales: "",
+      email_ops: "",
+      logo_url: "",
+      phone_sales: "",
+      phone_ops: "",
+      observations: ""
+    };
 
-    // 4️⃣ Merge results
-    wiki.fleet_size = airfleets.fleet_size;
-    wiki.aircraft_types = airfleets.aircraft_types;
+    // Title
+    data.name = clean($("#firstHeading").text()) || term;
 
-    res.json(wiki);
+    // Basic infobox parsing
+    const rows = $("table.infobox tr");
+    rows.each((_, el) => {
+      const label = clean($(el).find("th").text());
+      const value = clean($(el).find("td").text());
 
+      if (!label || !value) return;
+
+      if (label.includes("IATA")) data.iata = value;
+      if (label.includes("ICAO")) data.icao = value;
+      if (label.includes("Callsign")) data.callsign = value;
+      if (label.includes("Fleet size")) data.fleet_size = value;
+      if (label.includes("Headquarters")) data.headquarters = value;
+      if (label.includes("Founded")) data.founded = value;
+      if (label.includes("Website")) data.website = value;
+    });
+
+    // Simple summary as observations (first paragraph)
+    const firstP = $("#mw-content-text p").first().text().trim();
+    if (firstP) {
+      data.observations = firstP;
+    }
+
+    // Logo from infobox
+    const logoSrc = $("table.infobox img").first().attr("src");
+    if (logoSrc) {
+      data.logo_url = logoSrc.startsWith("http")
+        ? logoSrc
+        : "https:" + logoSrc;
+    }
+
+    if (!data.name) {
+      return res.status(404).json({ error: "No airline found" });
+    }
+
+    // ------- NOW: augment with Airfleets (optional) -------
+    const airfleets = await fetchAirfleetsData(data.name, data.icao);
+
+    if (airfleets.fleet_size) {
+      data.fleet_size = airfleets.fleet_size;
+    }
+    if (airfleets.aircraft_types) {
+      data.aircraft_types = airfleets.aircraft_types;
+    }
+
+    res.json(data);
   } catch (err) {
     console.error("Server error:", err);
     res.status(500).json({ error: "Server Error" });
@@ -144,5 +189,5 @@ app.get("/airline", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`API running on port ${PORT}`);
+  console.log(`Airline API running on port ${PORT}`);
 });
