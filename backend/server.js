@@ -9,136 +9,101 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
+// Normalize label names
+function clean(str) {
+  return str.replace(/\[.*?\]/g, "").trim();
+}
+
 app.get("/", (req, res) => {
   res.send("Airline API (Wikipedia + Planespotters) is running ✔");
 });
 
-/* -----------------------------------------------
-   1) Wikipedia Scraper
------------------------------------------------- */
-async function scrapeWikipedia(nameOrCode) {
-  const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(
-    nameOrCode
-  )}`;
-
-  try {
-    const resp = await fetch(url);
-    const html = await resp.text();
-    const $ = load(html);
-
-    const info = {};
-
-    $("table.infobox tr").each((i, row) => {
-      const header = $(row).find("th").text().trim();
-      const value = $(row).find("td").text().trim();
-
-      if (!header || !value) return;
-
-      if (/IATA/i.test(header)) info.iata = value;
-      if (/ICAO/i.test(header)) info.icao = value;
-      if (/Callsign/i.test(header)) info.callsign = value;
-      if (/Founded/i.test(header)) info.founded = value;
-      if (/Headquarters/i.test(header)) info.headquarters = value;
-      if (/Website/i.test(header)) info.website = $(row).find("td a").attr("href") || value;
-      if (/Fleet size/i.test(header)) info.fleet_size = value; // sometimes exists
-      if (/Destinations/i.test(header)) info.destinations = value;
-      if (/Parent company/i.test(header)) info.parent = value;
-      if (/Hubs/i.test(header)) info.hubs = value;
-    });
-
-    info.name = $("#firstHeading").text().trim();
-
-    return info;
-  } catch (err) {
-    console.log("Wikipedia error", err);
-    return null;
-  }
-}
-
-/* --------------------------------------------------------
-   2) Planespotters Scraper (Fleet Size + Aircraft Types)
----------------------------------------------------------*/
-async function scrapePlanespotters(iata, icao) {
-  if (!iata && !icao) return {};
-
-  const code = iata || icao;
-  const url = `https://www.planespotters.net/airline/${code}`;
-
-  try {
-    const resp = await fetch(url);
-    const html = await resp.text();
-    const $ = load(html);
-
-    const result = {};
-
-    // Fleet total
-    const fleetText = $("div.airline-fleet h2")
-      .text()
-      .trim()
-      .match(/Fleet\s+(\d+)/i);
-
-    if (fleetText) {
-      result.fleet_size = fleetText[1];
-    }
-
-    // Aircraft types list
-    const types = [];
-    $("table.fleet-table tbody tr").each((i, row) => {
-      const aircraft = $(row).find("td:nth-child(1)").text().trim();
-      if (aircraft) types.push(aircraft);
-    });
-
-    if (types.length) {
-      result.aircraft_types = types.join(", ");
-    }
-
-    return result;
-  } catch (err) {
-    console.log("Planespotters error", err);
-    return {};
-  }
-}
-
-/* --------------------------------------------------------
-   MAIN ENDPOINT
----------------------------------------------------------*/
 app.get("/airline", async (req, res) => {
   try {
-    const { iata, icao, name } = req.query;
+    const { name, iata, icao } = req.query;
 
-    const searchTerm =
-      name ||
-      (iata && iata.toUpperCase()) ||
-      (icao && icao.toUpperCase());
-
-    if (!searchTerm) {
-      return res.status(400).json({ error: "Provide name, iata, or icao" });
+    if (!name && !iata && !icao) {
+      return res.status(400).json({ error: "Provide ?name= OR ?iata= OR ?icao=" });
     }
 
-    // 1) Wikipedia
-    const wiki = await scrapeWikipedia(searchTerm);
+    // Choose search term
+    const term = name || iata || icao;
+    const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(term)}`;
 
-    if (!wiki || !wiki.name) {
+    const html = await (await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" }
+    })).text();
+
+    const $ = load(html);
+
+    let data = {
+      name: "",
+      shortName: "",
+      iata: "",
+      icao: "",
+      country: "",
+      region: "",
+      fleet_size: "",
+      aircraft_types: "",
+      headquarters: "",
+      founded: "",
+      website: "",
+      email: "",
+      phone: "",
+      callsign: "",
+      type: "",
+      status: "",
+      category: "",
+      email_sales: "",
+      email_ops: "",
+      logo_url: "",
+      phone_sales: "",
+      phone_ops: "",
+      observations: ""
+    };
+
+    // Select ANY infobox version
+    const rows = $("table.infobox tr");
+
+    rows.each((i, el) => {
+      const label = clean($(el).find("th").text());
+      const value = clean($(el).find("td").text());
+
+      if (!label || !value) return;
+
+      if (label.includes("IATA")) data.iata = value;
+      if (label.includes("ICAO")) data.icao = value;
+      if (label.includes("Callsign")) data.callsign = value;
+      if (label.includes("Fleet size")) data.fleet_size = value;
+      if (label.includes("Headquarters")) data.headquarters = value;
+      if (label.includes("Founded")) data.founded = value;
+      if (label.includes("Website")) data.website = value;
+    });
+
+    // Capture title
+    data.name = clean($("#firstHeading").text()) || term;
+
+    // Fallback fleet size from ANY bullet
+    if (!data.fleet_size) {
+      const fleetLine = $("li:contains('fleet')").first().text();
+      if (fleetLine) {
+        const match = fleetLine.match(/\d+/);
+        if (match) data.fleet_size = match[0];
+      }
+    }
+
+    if (!data.name) {
       return res.status(404).json({ error: "No airline found" });
     }
 
-    // 2) Planespotters (priority for fleet data)
-    const planes = await scrapePlanespotters(wiki.iata, wiki.icao);
+    res.json(data);
 
-    // Merge results (Planespotters overrides Wikipedia)
-    const output = {
-      ...wiki,
-      ...planes,
-    };
-
-    res.json(output);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server Error" });
   }
 });
 
-/* ------------------------------------------------------ */
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log(`Airline API running on port ${PORT}`);
 });
