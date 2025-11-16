@@ -1,19 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Airline Search</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airline Finder</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="container">
-    <h1>Airline Search Tool</h1>
 
-    <input type="text" id="searchInput" placeholder="Enter Airline Name, IATA, or ICAO">
-    <button onclick="searchAirline()">Search</button>
+  <header>
+    <h1>✈️ Airline Search</h1>
+    <p>Search by Airline Name, IATA or ICAO</p>
+  </header>
 
-    <pre id="result"></pre>
+  <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Enter Lufthansa, LH, or DLH">
+      <button id="searchBtn">Search</button>
+  </div>
+
+  <div id="loading" class="loading hidden">Searching...</div>
+
+  <div id="errorBox" class="error hidden"></div>
+
+  <div id="result" class="card hidden">
+      <h2 id="airlineName"></h2>
+      <img id="airlineLogo" class="logo hidden" />
+
+      <div class="grid">
+        <div><strong>Short Name:</strong> <span id="shortName"></span></div>
+        <div><strong>IATA:</strong> <span id="iata"></span></div>
+        <div><strong>ICAO:</strong> <span id="icao"></span></div>
+        <div><strong>Country:</strong> <span id="country"></span></div>
+        <div><strong>Region:</strong> <span id="region"></span></div>
+        <div><strong>Fleet Size:</strong> <span id="fleet_size"></span></div>
+        <div><strong>Aircraft Types:</strong> <span id="aircraft_types"></span></div>
+        <div><strong>Headquarters:</strong> <span id="headquarters"></span></div>
+        <div><strong>Founded:</strong> <span id="founded"></span></div>
+        <div><strong>Status:</strong> <span id="status"></span></div>
+        <div><strong>Type:</strong> <span id="type"></span></div>
+        <div><strong>Category:</strong> <span id="category"></span></div>
+        <div><strong>Callsign:</strong> <span id="callsign"></span></div>
+        <div><strong>Email:</strong> <span id="email"></span></div>
+        <div><strong>Phone:</strong> <span id="phone"></span></div>
+        <div><strong>Sales Email:</strong> <span id="email_sales"></span></div>
+        <div><strong>Ops Email:</strong> <span id="email_ops"></span></div>
+        <div><strong>Sales Phone:</strong> <span id="phone_sales"></span></div>
+        <div><strong>Ops Phone:</strong> <span id="phone_ops"></span></div>
+        <div><strong>Observations:</strong> <span id="observations"></span></div>
+        <div><strong>Website:</strong> <span id="website"></span></div>
+      </div>
+  </div>
+
+  <footer>
+      <p>Powered by Free Data Sources (Wikipedia + Planespotters)</p>
+  </footer>
+
 </div>
 
 <script src="script.js"></script>
