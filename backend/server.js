@@ -123,46 +123,91 @@ async function fetchWikipediaData(title) {
   data.name = clean($("#firstHeading").text()) || clean(title);
   data.shortName = data.name;
 
-    const rows = $("table.infobox tr");
-    rows.each((_, el) => {
-      const rawLabel = $(el).find("th").text();
-      const rawValue = $(el).find("td").text();
+  const rows = $("table.infobox tr");
+  rows.each((_, el) => {
+    const rawLabel = $(el).find("th").text();
+    const rawValue = $(el).find("td").text();
 
-      const label = clean(rawLabel);
-      const value = clean(rawValue);
+  const label = clean(rawLabel);
+  const value = clean(rawValue);
 
-      if (!label || !value) return;
+  if (!label || !value) return;
 
-      // IATA: usually 2-letter code
-      if (/IATA/i.test(label)) {
-        const match = value.match(/\b[A-Z0-9]{2}\b/);
-        if (match) data.iata = match[0];
-      }
+  // Short name
+  if (/Short name|Operating name/i.test(label)) {
+    data.shortName = value;
+  }
 
-      // ICAO: usually 3-letter code
-      if (/ICAO/i.test(label)) {
-        const match = value.match(/\b[A-Z0-9]{3}\b/);
-        if (match) data.icao = match[0];
-      }
+  // IATA
+  if (/IATA/i.test(label)) {
+    const match = value.match(/\b[A-Z0-9]{2}\b/);
+    if (match) data.iata = match[0];
+  }
 
-      // Callsign: remove short codes & bullets, keep the remaining text
-      if (/Callsign/i.test(label)) {
-        let cs = value
-          .replace(/\b[A-Z0-9]{2,3}\b/g, "")   // remove IATA/ICAO codes
-          .replace(/[•·]/g, " ")               // clean bullet symbols
-          .replace(/\s+/g, " ")                // collapse spaces
-          .trim();
-        if (cs) data.callsign = cs;
-      }
+  // ICAO
+  if (/ICAO/i.test(label)) {
+    const match = value.match(/\b[A-Z0-9]{3}\b/);
+    if (match) data.icao = match[0];
+  }
 
-      if (/Fleet size/i.test(label)) data.fleet_size = value;
-      if (/Headquarters/i.test(label)) data.headquarters = value;
-      if (/Founded/i.test(label)) data.founded = value;
-      if (/Website/i.test(label)) data.website = value;
-      if (/Type/i.test(label)) data.type = value;
-      if (/Status/i.test(label)) data.status = value;
-      if (/Category/i.test(label)) data.category = value;
-    });
+  // Callsign
+  if (/Callsign/i.test(label)) {
+    let cs = value
+      .replace(/\b[A-Z0-9]{2,3}\b/g, "")  // remove codes
+      .replace(/[•·]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    data.callsign = cs;
+  }
+
+  // Headquarters
+  if (/Headquarters/i.test(label)) {
+    data.headquarters = value;
+  }
+
+  // Founded
+  if (/Founded/i.test(label)) {
+    data.founded = value;
+  }
+
+  // Fleet size (Wikipedia)
+  if (/Fleet size|Fleet/i.test(label)) {
+    data.fleet_size = value;
+  }
+
+  // Website
+  if (/Website/i.test(label)) {
+    data.website = value;
+  }
+
+  // Key people
+  if (/Key people/i.test(label)) {
+    data.key_people = value
+      .replace(/\n/g, ", ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  // Status detection
+  if (/Ceased|Terminated|Defunct/i.test(label)) {
+    data.status = "Defunct";
+  }
+  if (/Operating|Commenced/i.test(label)) {
+    data.status = "Active";
+  }
+
+  // Type (sometimes appears)
+  if (/Type/i.test(label)) {
+    data.type = value;
+  }
+
+  // Category (derived)
+  if (/flag carrier/i.test(value.toLowerCase())) data.category = "Flag carrier";
+  if (/low-cost/i.test(value.toLowerCase())) data.category = "Low-cost";
+  if (/charter/i.test(value.toLowerCase())) data.category = "Charter";
+  if (/regional/i.test(value.toLowerCase())) data.category = "Regional";
+});
+ 
 
 
   // Country & region from headquarters (last piece)
