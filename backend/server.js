@@ -8,13 +8,62 @@ app.use(express.json());
 app.use(cors());
 
 const PORT = process.env.PORT || 3000;
+const FETCH_TIMEOUT = 10000; // 10 seconds
+const CACHE_DURATION = 3600000; // 1 hour in milliseconds
 
-// Small helper to clean text
+// Simple in-memory cache
+const cache = new Map();
+
+/**
+ * Fetch with timeout wrapper
+ * @param {string} url - URL to fetch
+ * @param {object} options - Fetch options
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Promise<Response>}
+ */
+async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Sanitize input string to prevent injection attacks
+ * @param {string} input - User input to sanitize
+ * @returns {string} - Sanitized input
+ */
+function sanitizeInput(input = "") {
+  return input.trim().replace(/[<>"'`]/g, "").substring(0, 100);
+}
+
+/**
+ * Clean text by removing Wikipedia reference markers
+ * @param {string} str - Text to clean
+ * @returns {string} - Cleaned text
+ */
 function clean(str = "") {
   return str.replace(/\[.*?\]/g, "").trim();
 }
 
-// Simple region detection from country name
+/**
+ * Detect continent/region from country name
+ * @param {string} country - Country name
+ * @returns {string} - Region name (Europe, North America, etc.)
+ */
 function detectRegion(country = "") {
   const c = country.toLowerCase();
 
@@ -51,7 +100,13 @@ function detectRegion(country = "") {
   return "";
 }
 
-// -------- Wikipedia SEARCH: get the right page title --------
+/**
+ * Search Wikipedia to find the correct airline page title
+ * @param {string} name - Airline name
+ * @param {string} iata - IATA code
+ * @param {string} icao - ICAO code
+ * @returns {Promise<string|null>} - Wikipedia page title or null
+ */
 async function wikipediaSearchTitle(name, iata, icao) {
   // Build a nicer query string
   let q = "";
@@ -66,7 +121,7 @@ async function wikipediaSearchTitle(name, iata, icao) {
     `?action=query&format=json&origin=*` +
     `&list=search&srsearch=${encodeURIComponent(q)}&srlimit=1`;
 
-  const resp = await fetch(url, {
+  const resp = await fetchWithTimeout(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; AirlineFinder/1.0)" }
   });
 
@@ -79,12 +134,16 @@ async function wikipediaSearchTitle(name, iata, icao) {
   return first.title; // e.g. "TAP Air Portugal"
 }
 
-// -------- Wikipedia PAGE scraper --------
+/**
+ * Scrape airline data from Wikipedia page
+ * @param {string} title - Wikipedia page title
+ * @returns {Promise<object|null>} - Airline data object or null
+ */
 async function fetchWikipediaData(title) {
   if (!title) return null;
 
   const pageUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
-  const resp = await fetch(pageUrl, {
+  const resp = await fetchWithTimeout(pageUrl, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; AirlineFinder/1.0)" }
   });
 
@@ -116,7 +175,11 @@ async function fetchWikipediaData(title) {
     logo_url: "",
     phone_sales: "",
     phone_ops: "",
-    observations: ""
+    observations: "",
+    ceo: "",
+    parent_company: "",
+    destinations: "",
+    hubs: ""
   };
 
   // Title
@@ -162,6 +225,10 @@ async function fetchWikipediaData(title) {
       if (/Type/i.test(label)) data.type = value;
       if (/Status/i.test(label)) data.status = value;
       if (/Category/i.test(label)) data.category = value;
+      if (/Key people|CEO/i.test(label)) data.ceo = value;
+      if (/Parent/i.test(label)) data.parent_company = value;
+      if (/Destinations/i.test(label)) data.destinations = value;
+      if (/Hubs|Focus cities/i.test(label)) data.hubs = value;
     });
 
 
@@ -204,12 +271,26 @@ app.get("/", (req, res) => {
 
 app.get("/airline", async (req, res) => {
   try {
-    const { name, iata, icao } = req.query;
+    let { name, iata, icao } = req.query;
 
     if (!name && !iata && !icao) {
       return res
         .status(400)
         .json({ error: "Provide ?name= OR ?iata= OR ?icao=" });
+    }
+
+    // Sanitize inputs
+    name = name ? sanitizeInput(name) : null;
+    iata = iata ? sanitizeInput(iata).toUpperCase() : null;
+    icao = icao ? sanitizeInput(icao).toUpperCase() : null;
+
+    // Create cache key
+    const cacheKey = `${name || ''}_${iata || ''}_${icao || ''}`;
+    
+    // Check cache
+    const cached = cache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
+      return res.json(cached.data);
     }
 
     // 1) Find the correct Wikipedia title
@@ -224,10 +305,26 @@ app.get("/airline", async (req, res) => {
       return res.status(404).json({ error: "No airline found on Wikipedia" });
     }
 
+    // Store in cache
+    cache.set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    });
+
     res.json(data);
   } catch (err) {
     console.error("Server error:", err);
-    res.status(500).json({ error: "Server Error" });
+    
+    // Provide more specific error messages
+    if (err.message === 'Request timeout') {
+      return res.status(504).json({ error: "Request timeout. Wikipedia may be slow. Please try again." });
+    }
+    
+    if (err.name === 'FetchError') {
+      return res.status(503).json({ error: "Unable to reach Wikipedia. Please try again later." });
+    }
+    
+    res.status(500).json({ error: "Server Error. Please try again." });
   }
 });
 

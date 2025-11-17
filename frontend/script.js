@@ -1,4 +1,7 @@
-const API_URL = "https://airline-search-h4y0.onrender.com/airline";
+// API Configuration - automatically detects environment
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? "http://localhost:3000/airline"
+  : "https://airline-search-h4y0.onrender.com/airline";
 
 const searchForm = document.getElementById("searchForm");
 const searchInput = document.getElementById("searchInput");
@@ -129,6 +132,10 @@ function displayResult(data) {
     "email_ops",
     "phone_sales",
     "phone_ops",
+    "ceo",
+    "parent_company",
+    "destinations",
+    "hubs",
     "observations"
   ];
 
